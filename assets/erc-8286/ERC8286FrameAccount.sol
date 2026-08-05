@@ -38,12 +38,10 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
     function verify(bytes calldata data) external override returns (uint8 approvalMode) {
         uint256 frameIndex;
         uint256 frameMode;
-        bytes32 sigHash;
         uint256 allowedRaw;
         assembly {
             frameIndex := verbatim_1i_1o(hex"b0", 0x0a) // TXPARAM currently executing frame index
             frameMode := verbatim_2i_1o(hex"b3", frameIndex, 0x02) // FRAMEPARAM(frameIndex, param=0x02 mode)
-            sigHash := verbatim_1i_1o(hex"b0", 0x08) // TXPARAM canonical signing hash
             allowedRaw := verbatim_2i_1o(hex"b3", frameIndex, 0x06) // FRAMEPARAM(frameIndex, param=0x06 allowed scope)
         }
 
@@ -58,8 +56,9 @@ contract ERC8286FrameAccount is IERC8286FrameAccount {
 
         uint8 allowedScope = uint8(allowedRaw) & APPROVE_SCOPE_MASK;
 
-        approvalMode =
-            IFrameValidator(validator).validateFrame(sigHash, frameIndex, allowedScope, validatorData);
+        // Validator reads sigHash / frameIndex / allowedScope / frame contents via
+        // EIP-8141 introspection; the account only forwards validator-specific calldata.
+        approvalMode = IFrameValidator(validator).validateFrame(validatorData);
 
         // Mask to the frame's allowance; the account is the final authority.
         uint8 granted = approvalMode & allowedScope;
